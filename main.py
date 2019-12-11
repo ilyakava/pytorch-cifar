@@ -1,4 +1,4 @@
-'''Train CIFAR10 with PyTorch.'''
+'''Train CIFAR with PyTorch.'''
 from __future__ import print_function
 
 import torch
@@ -16,11 +16,12 @@ import argparse
 from models import *
 from utils import progress_bar
 
-parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
+parser = argparse.ArgumentParser(description='PyTorch CIFAR Training')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--data_root', required=True, help='path to dataset')
 parser.add_argument('--out', default='.', help='folder to output images and model checkpoints')
+parser.add_argument('--dataset', default='C10', help='Dataset to learn from. C10|C100')
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -29,25 +30,42 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
 # Data
 print('==> Preparing data..')
+if args.dataset == 'C10':
+    num_classes = 10
+    dataset_mean = (0.4914, 0.4822, 0.4465)
+    dataset_std = (0.2023, 0.1994, 0.2010)
+elif args.dataset == 'C100':
+    num_classes = 100
+    dataset_mean = (0.507, 0.487, 0.441)
+    dataset_std = (0.267, 0.256, 0.276)
+
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    transforms.Normalize(dataset_mean, dataset_std),
 ])
 
 transform_test = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    transforms.Normalize(dataset_mean, dataset_std),
 ])
 
-trainset = torchvision.datasets.CIFAR10(root=args.data_root, train=True, download=True, transform=transform_train)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
+if args.dataset == 'C10':
+    trainset = torchvision.datasets.CIFAR10(root=args.data_root, train=True, download=True, transform=transform_train)
+    testset = torchvision.datasets.CIFAR10(root=args.data_root, train=False, download=True, transform=transform_test)
+elif args.dataset == 'C100':
+    trainset = torchvision.datasets.CIFAR100(root=args.data_root, train=True, download=True, transform=transform_train)
+    testset = torchvision.datasets.CIFAR100(root=args.data_root, train=False, download=True, transform=transform_test)
 
-testset = torchvision.datasets.CIFAR10(root=args.data_root, train=False, download=True, transform=transform_test)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=2)
 testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+cifar10_classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+
+num_classes = 10
+if args.dataset == 'C100':
+    num_classes = 100
 
 # Model
 print('==> Building model..')
@@ -55,7 +73,7 @@ print('==> Building model..')
 # net = ResNet18()
 # net = PreActResNet18()
 # net = GoogLeNet()
-# net = DenseNet121()
+net = DenseNet121(num_classes=num_classes)
 # net = ResNeXt29_2x64d()
 # net = MobileNet()
 # net = MobileNetV2()
@@ -63,7 +81,7 @@ print('==> Building model..')
 # net = ShuffleNetG2()
 # net = SENet18()
 # net = ShuffleNetV2(1)
-net = EfficientNetB0()
+# net = EfficientNetB0()
 net = net.to(device)
 if device == 'cuda':
     net = torch.nn.DataParallel(net)

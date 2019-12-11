@@ -2,6 +2,8 @@
 import torch
 import torch.nn as nn
 
+import pdb
+
 
 cfg = {
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
@@ -17,11 +19,23 @@ class VGG(nn.Module):
         self.features = self._make_layers(cfg[vgg_name])
         self.classifier = nn.Linear(512, 10)
 
-    def forward(self, x):
+    def forward(self, x, feat=False):
         out = self.features(x)
         out = out.view(out.size(0), -1)
-        out = self.classifier(out)
-        return out
+        if feat:
+            
+            relu1_2 = self.features[5](x)
+            relu1_2 = relu1_2.view(relu1_2.size(0),-1)
+            relu2_2 = self.features[12](x)
+            relu2_2 = relu2_2.view(relu2_2.size(0),-1)
+            relu3_3 = self.features[25](x)
+            relu3_3 = relu3_3.view(relu3_3.size(0),-1)
+            relu4_3 = self.features[38](x)
+            relu4_3 = relu4_3.view(relu4_3.size(0),-1)
+            
+            return torch.cat((relu1_2, relu2_2, relu3_3, relu4_3),1)
+        else:
+            return self.classifier(out)
 
     def _make_layers(self, cfg):
         layers = []
